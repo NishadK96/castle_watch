@@ -111,6 +111,7 @@ class AppShell extends StatelessWidget {
       return Scaffold(
         body: child,
         bottomNavigationBar: NavigationBar(
+          labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
           selectedIndex: index,
           onDestinationSelected: (i) => context.go(paths[i]),
           destinations: destinations

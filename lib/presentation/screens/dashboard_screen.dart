@@ -18,6 +18,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   String query = '';
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < 600;
+    final pagePadding = isMobile ? 16.0 : 24.0;
     final accounts = ref
         .watch(accountsProvider)
         .where((a) => !a.isArchived)
@@ -63,137 +66,165 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           }.contains(a.shield?.state(now)),
         )
         .length;
-    return SafeArea(
-      child: CustomScrollView(
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                _Header(onAdd: () => showAccountForm(context, ref)),
-                if (loading)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 12),
-                    child: LinearProgressIndicator(),
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: RadialGradient(
+          center: Alignment(-.85, -1.1),
+          radius: 1.15,
+          colors: [Color(0x1F3978A8), AppColors.background],
+        ),
+      ),
+      child: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(
+                pagePadding,
+                isMobile ? 14 : 28,
+                pagePadding,
+                0,
+              ),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  _Header(onAdd: () => showAccountForm(context, ref)),
+                  if (loading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 12),
+                      child: LinearProgressIndicator(),
+                    ),
+                  if (loadError != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: MaterialBanner(
+                        content: Text(loadError),
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                ref.read(accountsProvider.notifier).refresh(),
+                            child: const Text('Retry'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  SizedBox(height: isMobile ? 18 : 24),
+                  LayoutBuilder(
+                    builder: (_, box) {
+                      final width = box.maxWidth;
+                      final columns = width > 1050 ? 4 : 2;
+                      return GridView.count(
+                        crossAxisCount: columns,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        crossAxisSpacing: isMobile ? 10 : 12,
+                        mainAxisSpacing: isMobile ? 10 : 12,
+                      childAspectRatio: isMobile ? 1.18 : 2.15,
+                        children: [
+                          SummaryCard(
+                            label: 'TOTAL ACCOUNTS',
+                            value: '${accounts.length}',
+                            icon: Icons.castle_outlined,
+                            color: AppColors.blue,
+                          ),
+                          SummaryCard(
+                            label: 'SHIELDED',
+                            value: '$shielded',
+                            icon: Icons.shield_rounded,
+                            color: AppColors.cyan,
+                          ),
+                          SummaryCard(
+                            label: 'EXPIRING SOON',
+                            value: '$expiring',
+                            icon: Icons.timer_outlined,
+                            color: AppColors.amber,
+                          ),
+                          SummaryCard(
+                            label: 'UNSHIELDED',
+                            value: '${accounts.length - shielded}',
+                            icon: Icons.gpp_bad_outlined,
+                            color: AppColors.red,
+                          ),
+                        ],
+                      );
+                    },
                   ),
-                if (loadError != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: MaterialBanner(
-                      content: Text(loadError),
-                      actions: [
-                        TextButton(
-                          onPressed: () =>
-                              ref.read(accountsProvider.notifier).refresh(),
-                          child: const Text('Retry'),
+                  SizedBox(height: isMobile ? 24 : 30),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Your castles',
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
-                      ],
+                      ),
+                      Text(
+                        '${visible.length} ${visible.length == 1 ? 'account' : 'accounts'}',
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    onChanged: (v) => setState(() => query = v),
+                    decoration: const InputDecoration(
+                      hintText: 'Search accounts, guilds or kingdoms',
+                      prefixIcon: Icon(Icons.search),
                     ),
                   ),
-                const SizedBox(height: 24),
-                LayoutBuilder(
-                  builder: (_, box) {
-                    final width = box.maxWidth;
-                    final columns = width > 1050
-                        ? 4
-                        : width > 560
-                        ? 2
-                        : 2;
-                    return GridView.count(
-                      crossAxisCount: columns,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: width < 420 ? 1.3 : 2.15,
-                      children: [
-                        SummaryCard(
-                          label: 'TOTAL ACCOUNTS',
-                          value: '${accounts.length}',
-                          icon: Icons.castle_outlined,
-                          color: AppColors.blue,
-                        ),
-                        SummaryCard(
-                          label: 'SHIELDED',
-                          value: '$shielded',
-                          icon: Icons.shield_rounded,
-                          color: AppColors.cyan,
-                        ),
-                        SummaryCard(
-                          label: 'EXPIRING SOON',
-                          value: '$expiring',
-                          icon: Icons.timer_outlined,
-                          color: AppColors.amber,
-                        ),
-                        SummaryCard(
-                          label: 'UNSHIELDED',
-                          value: '${accounts.length - shielded}',
-                          icon: Icons.gpp_bad_outlined,
-                          color: AppColors.red,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 26),
-                Text(
-                  'Shield command center',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  onChanged: (v) => setState(() => query = v),
-                  decoration: const InputDecoration(
-                    hintText: 'Search accounts, guilds or kingdoms',
-                    prefixIcon: Icon(Icons.search),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: DashboardFilter.values
-                        .map(
-                          (item) => Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: FilterChip(
-                              selected: filter == item,
-                              onSelected: (_) => setState(() => filter = item),
-                              label: Text(_filterName(item)),
+                  const SizedBox(height: 12),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: DashboardFilter.values
+                          .map(
+                            (item) => Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: FilterChip(
+                                selected: filter == item,
+                                onSelected: (_) =>
+                                    setState(() => filter = item),
+                                label: Text(_filterName(item)),
+                              ),
                             ),
-                          ),
-                        )
-                        .toList(),
+                          )
+                          .toList(),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 18),
-              ]),
-            ),
-          ),
-          if (visible.isEmpty)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: _Empty(onAdd: () => showAccountForm(context, ref)),
-            )
-          else
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-              sliver: SliverGrid(
-                delegate: SliverChildBuilderDelegate(
-                  (_, i) => AccountCard(account: visible[i], now: now),
-                  childCount: visible.length,
-                ),
-                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 520,
-                  mainAxisExtent: 292,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                ),
+                  const SizedBox(height: 16),
+                ]),
               ),
             ),
-        ],
+            if (visible.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _Empty(onAdd: () => showAccountForm(context, ref)),
+              )
+            else
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  pagePadding,
+                  0,
+                  pagePadding,
+                  isMobile ? 92 : 48,
+                ),
+                sliver: SliverGrid(
+                  delegate: SliverChildBuilderDelegate(
+                    (_, i) => AccountCard(account: visible[i], now: now),
+                    childCount: visible.length,
+                  ),
+                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: isMobile ? 600 : 520,
+                    mainAxisExtent: isMobile ? 286 : 292,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 14,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -212,35 +243,75 @@ class _Header extends StatelessWidget {
   const _Header({required this.onAdd});
   final VoidCallback onAdd;
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) {
+    final mobile = MediaQuery.sizeOf(context).width < 600;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Text(
-              'Good evening, Commander',
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            Container(
+              width: mobile ? 38 : 44,
+              height: mobile ? 38 : 44,
+              decoration: BoxDecoration(
+                color: AppColors.cyan.withValues(alpha: .13),
+                borderRadius: BorderRadius.circular(13),
+                border: Border.all(
+                  color: AppColors.cyan.withValues(alpha: .25),
+                ),
+              ),
+              child: const Icon(Icons.shield_rounded, color: AppColors.cyan),
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Keep every castle protected.',
-              style: TextStyle(color: Colors.white54),
+            const SizedBox(width: 11),
+            const Expanded(
+              child: Text(
+                'CASTLE WATCH',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.4,
+                ),
+              ),
+            ),
+            IconButton.filledTonal(
+              onPressed: () {},
+              tooltip: 'Notifications',
+              icon: const Icon(Icons.notifications_none_rounded),
             ),
           ],
         ),
-      ),
-      FilledButton.icon(
-        onPressed: onAdd,
-        icon: const Icon(Icons.add),
-        label: Text(
-          MediaQuery.sizeOf(context).width > 500 ? 'Add account' : 'Add',
+        SizedBox(height: mobile ? 22 : 28),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    mobile ? 'Command center' : 'Good evening, Commander',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -.4,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Keep every castle protected.',
+                    style: TextStyle(color: Colors.white54),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed: onAdd,
+              icon: const Icon(Icons.add),
+              label: Text(mobile ? 'Add' : 'Add account'),
+            ),
+          ],
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 class SummaryCard extends StatelessWidget {
@@ -255,44 +326,80 @@ class SummaryCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: .12),
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: Icon(icon, color: color),
-          ),
-          const Spacer(),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                value,
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
+  Widget build(BuildContext context) {
+    final mobile = MediaQuery.sizeOf(context).width < 600;
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(mobile ? 13 : 16),
+        child: mobile
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: .12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, color: color, size: 20),
+                  ),
+                  const Spacer(),
+                  Text(
+                    value,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: .35,
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: .12),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(icon, color: color),
+                  ),
+                  const Spacer(),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        value,
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                      Text(
+                        label,
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 11,
+                          letterSpacing: .6,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 11,
-                  letterSpacing: .6,
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 class AccountCard extends ConsumerWidget {
@@ -343,6 +450,8 @@ class AccountCard extends ConsumerWidget {
                         if (account.playerName.isNotEmpty)
                           Text(
                             account.playerName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(color: Colors.white54),
                           ),
                       ],
@@ -367,17 +476,19 @@ class AccountCard extends ConsumerWidget {
               Row(
                 children: [
                   StatusBadge(status: status),
-                  const Spacer(),
-                  if (account.kingdom.isNotEmpty)
-                    Text(
-                      account.kingdom,
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      [
+                        account.kingdom,
+                        account.guild,
+                      ].where((item) => item.isNotEmpty).join('  •  '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
                       style: const TextStyle(color: Colors.white54),
                     ),
-                  if (account.guild.isNotEmpty)
-                    Text(
-                      '  •  ${account.guild}',
-                      style: const TextStyle(color: Colors.white54),
-                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 18),

@@ -46,7 +46,13 @@ abstract final class AppTheme {
         ),
       ),
       navigationBarTheme: const NavigationBarThemeData(
-        backgroundColor: AppColors.surface,
+        backgroundColor: Color(0xFF0E1625),
+        height: 72,
+        elevation: 0,
+        indicatorColor: Color(0x2853E3C2),
+        labelTextStyle: WidgetStatePropertyAll(
+          TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+        ),
       ),
       navigationRailTheme: const NavigationRailThemeData(
         backgroundColor: AppColors.surface,
@@ -59,6 +65,14 @@ abstract final class AppTheme {
           ),
         ),
       ),
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.surfaceHigh,
+        selectedColor: AppColors.cyan.withValues(alpha: .16),
+        side: const BorderSide(color: Color(0xFF28354B)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      dividerColor: const Color(0xFF202A3E),
     );
   }
 }
