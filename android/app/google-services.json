@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "112580489904",
+    "project_id": "castle-watch-29837",
+    "storage_bucket": "castle-watch-29837.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:112580489904:android:cd5f473ca73186add8c175",
+        "android_client_info": {
+          "package_name": "com.example.castle_watch"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDkXTlg-waXG7vj2pKJtF5TLBXz4XRGlaE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

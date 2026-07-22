@@ -2,9 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/config/supabase_config.dart';
 import '../data/repositories/notifications_repository.dart';
 import '../domain/models/notification_models.dart';
+import '../services/push_notification_service.dart';
 
 final notificationsRepositoryProvider = Provider(
   (ref) => NotificationsRepository(),
+);
+final pushNotificationServiceProvider = Provider(
+  (ref) => PushNotificationService(ref.read(notificationsRepositoryProvider)),
 );
 final notificationPreferencesProvider =
     AsyncNotifierProvider<

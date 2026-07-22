@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'application/app_state.dart';
+import 'application/notifications_state.dart';
 import 'core/config/supabase_config.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/screens/dashboard_screen.dart';
@@ -66,7 +67,7 @@ class CastleWatchApp extends StatelessWidget {
   );
 }
 
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, required this.location, required this.child});
   final String location;
   final Widget child;
@@ -99,20 +100,83 @@ class AppShell extends StatelessWidget {
       label: Text('Settings'),
     ),
   ];
+
+  @override
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _activatePush());
+  }
+
+  Future<void> _activatePush() async {
+    if (!SupabaseConfig.isConfigured ||
+        SupabaseConfig.client.auth.currentUser == null) {
+      return;
+    }
+    try {
+      final result = await ref
+          .read(pushNotificationServiceProvider)
+          .activate(
+            onForeground: (message) {
+              if (!mounted) return;
+              final notification = message.notification;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                    notification?.body ?? 'A new Castle Watch alert arrived.',
+                  ),
+                  action: SnackBarAction(
+                    label: 'View',
+                    onPressed: () => context.go('/notifications'),
+                  ),
+                ),
+              );
+            },
+            onTap: (_) => context.go('/dashboard'),
+          );
+      ref.invalidate(activeDeviceCountProvider);
+      if (!result.enabled && mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(result.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Push registration is unavailable. Check notification permission and configuration.',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    ref.read(pushNotificationServiceProvider).deactivate();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final index = paths
-        .indexWhere(location.startsWith)
-        .clamp(0, paths.length - 1);
+    final index = AppShell.paths
+        .indexWhere(widget.location.startsWith)
+        .clamp(0, AppShell.paths.length - 1);
     final wide = MediaQuery.sizeOf(context).width >= 840;
     if (!wide) {
       return Scaffold(
-        body: child,
+        body: widget.child,
         bottomNavigationBar: NavigationBar(
           labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
           selectedIndex: index,
-          onDestinationSelected: (i) => context.go(paths[i]),
-          destinations: destinations
+          onDestinationSelected: (i) => context.go(AppShell.paths[i]),
+          destinations: AppShell.destinations
               .map(
                 (d) => NavigationDestination(
                   icon: d.icon,
@@ -128,7 +192,7 @@ class AppShell extends StatelessWidget {
         children: [
           NavigationRail(
             selectedIndex: index,
-            onDestinationSelected: (i) => context.go(paths[i]),
+            onDestinationSelected: (i) => context.go(AppShell.paths[i]),
             extended: MediaQuery.sizeOf(context).width >= 1160,
             leading: Padding(
               padding: const EdgeInsets.fromLTRB(8, 20, 8, 32),
@@ -154,10 +218,10 @@ class AppShell extends StatelessWidget {
                 ],
               ),
             ),
-            destinations: destinations,
+            destinations: AppShell.destinations,
           ),
           const VerticalDivider(width: 1, color: Color(0xFF202A3E)),
-          Expanded(child: child),
+          Expanded(child: widget.child),
         ],
       ),
     );

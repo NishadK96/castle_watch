@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ -z "${SUPABASE_URL:-}" || -z "${SUPABASE_ANON_KEY:-}" ]]; then
-  echo "Missing SUPABASE_URL or SUPABASE_ANON_KEY in Vercel Environment Variables."
+if [[ -z "${SUPABASE_URL:-}" || -z "${SUPABASE_ANON_KEY:-}" || -z "${WEB_VAPID_KEY:-}" ]]; then
+  echo "Missing SUPABASE_URL, SUPABASE_ANON_KEY, or WEB_VAPID_KEY in Vercel Environment Variables."
   exit 1
 fi
 
@@ -18,4 +18,5 @@ flutter config --enable-web
 flutter pub get
 flutter build web --release \
   --dart-define="SUPABASE_URL=${SUPABASE_URL}" \
-  --dart-define="SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}"
+  --dart-define="SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}" \
+  --dart-define="WEB_VAPID_KEY=${WEB_VAPID_KEY}"

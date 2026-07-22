@@ -47,6 +47,11 @@ Vercel project, add these variables for Production, Preview, and Development:
 
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
+- `WEB_VAPID_KEY`
 
 Keep the framework preset as **Other**. The repository configuration builds to
 `build/web` and rewrites client-side routes to `index.html`.
+
+`WEB_VAPID_KEY` is the public key from Firebase Console → Project settings →
+Cloud Messaging → Web Push certificates. Firebase service-account JSON belongs
+only in Supabase Edge Function secrets.
