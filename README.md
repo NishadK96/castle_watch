@@ -1,43 +1,41 @@
 # Castle Watch
 
-Independent Flutter companion for managing game accounts and shield expiry times.
+Independent Flutter companion for managing multiple game accounts and monitoring shield expiry times. Castle Watch is not affiliated with Lords Mobile or its publisher.
 
-## Run
+## Features
 
-For an explicit local demonstration mode:
+- Responsive Material 3 dashboard for mobile, tablet, and web
+- Supabase email/password authentication and protected routes
+- Account management with favorites, archive, search, and filters
+- UTC-backed shield countdowns and atomic shield replacement
+- PostgreSQL migrations with ownership constraints and Row Level Security
+- Explicit local demo mode for UI development
+
+## Supabase setup
+
+Apply the migrations in `supabase/migrations` to your Supabase project. Copy the environment template and add the public project values:
 
 ```sh
-flutter run --dart-define=DEMO_MODE=true
+cp .env.example .env
 ```
 
-For Supabase authentication and persistence, apply the migrations in
-`supabase/migrations` and provide the public project values:
-
-```sh
-flutter run \
-  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=your-public-anon-key
-```
-
-Or copy `.env.example` to `.env` and run:
+Run the web application:
 
 ```sh
 flutter run -d chrome --dart-define-from-file=.env
 ```
 
-Never provide the Supabase service-role key to the Flutter client.
+Never put a Supabase service-role key in the Flutter client.
 
-A new Flutter project.
+## Demo mode
 
-## Getting Started
+```sh
+flutter run --dart-define=DEMO_MODE=true
+```
 
-This project is a starting point for a Flutter application.
+## Quality checks
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+```sh
+flutter analyze
+flutter test
+```
