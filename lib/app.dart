@@ -6,6 +6,7 @@ import 'core/config/supabase_config.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/screens/dashboard_screen.dart';
 import 'presentation/screens/login_screen.dart';
+import 'presentation/screens/notifications_screen.dart';
 
 final _router = GoRouter(
   initialLocation: '/dashboard',
@@ -43,14 +44,11 @@ final _router = GoRouter(
         ),
         GoRoute(
           path: '/notifications',
-          builder: (context, state) => const PlaceholderScreen(
-            title: 'Notifications',
-            icon: Icons.notifications_none_rounded,
-          ),
+          builder: (context, state) => const NotificationHistoryScreen(),
         ),
         GoRoute(
           path: '/settings',
-          builder: (context, state) => const SettingsScreen(),
+          builder: (context, state) => const NotificationSettingsScreen(),
         ),
       ],
     ),

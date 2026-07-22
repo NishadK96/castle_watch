@@ -117,7 +117,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         physics: const NeverScrollableScrollPhysics(),
                         crossAxisSpacing: isMobile ? 10 : 12,
                         mainAxisSpacing: isMobile ? 10 : 12,
-                      childAspectRatio: isMobile ? 1.18 : 2.15,
+                        childAspectRatio: isMobile ? 1.18 : 2.15,
                         children: [
                           SummaryCard(
                             label: 'TOTAL ACCOUNTS',

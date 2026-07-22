@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:castle_watch/app.dart';
 import 'package:castle_watch/presentation/screens/dashboard_screen.dart';
+import 'package:castle_watch/presentation/screens/notifications_screen.dart';
 import 'package:flutter/material.dart';
 
 void main() {
@@ -44,6 +45,29 @@ void main() {
     tester.view.physicalSize = const Size(320, 568);
     await tester.pump();
     expect(find.text('Command center'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('notification settings fit a narrow mobile viewport', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      const ProviderScope(
+        child: MaterialApp(home: NotificationSettingsScreen()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Settings'), findsOneWidget);
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pump();
+    expect(find.text('PUSH REMINDERS'), findsOneWidget);
+    expect(find.text('Push notifications'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
