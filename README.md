@@ -39,3 +39,14 @@ flutter run --dart-define=DEMO_MODE=true
 flutter analyze
 flutter test
 ```
+
+## Vercel deployment
+
+The repository includes `vercel.json` and a Flutter Web build script. In the
+Vercel project, add these variables for Production, Preview, and Development:
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+
+Keep the framework preset as **Other**. The repository configuration builds to
+`build/web` and rewrites client-side routes to `index.html`.
