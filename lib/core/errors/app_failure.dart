@@ -14,6 +14,15 @@ class AppFailure implements Exception {
       }
       return AppFailure(message);
     }
+    if (error is PostgrestException) {
+      return AppFailure(
+        [
+          error.message,
+          error.details,
+          error.hint,
+        ].whereType<String>().where((value) => value.isNotEmpty).join(' — '),
+      );
+    }
     final value = error.toString().toLowerCase();
     if (value.contains('invalid login')) {
       return const AppFailure('Incorrect email or password.');
