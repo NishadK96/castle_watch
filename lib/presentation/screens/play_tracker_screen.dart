@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../application/app_state.dart';
@@ -11,7 +12,9 @@ import '../../services/play_session_notifications.dart';
 import 'dashboard_screen.dart';
 
 class PlayTrackerScreen extends ConsumerWidget {
-  const PlayTrackerScreen({super.key});
+  const PlayTrackerScreen({super.key, this.openQuickPicker = false});
+  final bool openQuickPicker;
+  static bool _quickPickerOpen = false;
 
   static const _groupOrder = [
     'food',
@@ -94,6 +97,14 @@ class PlayTrackerScreen extends ConsumerWidget {
         .where((account) => account.playStatus(now) == PlayStatus.recent)
         .length;
     final due = accounts.length - played;
+    if (openQuickPicker && !_quickPickerOpen) {
+      _quickPickerOpen = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        await showQuickAccountPicker(context, ref);
+        _quickPickerOpen = false;
+        if (context.mounted) context.go('/play');
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -176,8 +187,18 @@ class PlayTrackerScreen extends ConsumerWidget {
                               Icons.notifications_active_rounded,
                             ),
                             label: const Text(
-                              'Start notification play session',
+                              'Enable quick check-in notification',
                             ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () =>
+                                showQuickAccountPicker(context, ref),
+                            icon: const Icon(Icons.touch_app_rounded),
+                            label: const Text('Quick mark any account'),
                           ),
                         ),
                       ],
@@ -257,7 +278,7 @@ class PlayTrackerScreen extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Play session started with ${queue.length} accounts. Use the notification controls.',
+            'Quick check-in notification enabled. Choose any account after you play.',
           ),
         ),
       );
@@ -276,6 +297,126 @@ class _RecentActivitySheet extends ConsumerStatefulWidget {
   @override
   ConsumerState<_RecentActivitySheet> createState() =>
       _RecentActivitySheetState();
+}
+
+Future<void> showQuickAccountPicker(BuildContext context, WidgetRef ref) =>
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const _QuickAccountPicker(),
+    );
+
+class _QuickAccountPicker extends ConsumerStatefulWidget {
+  const _QuickAccountPicker();
+
+  @override
+  ConsumerState<_QuickAccountPicker> createState() =>
+      _QuickAccountPickerState();
+}
+
+class _QuickAccountPickerState extends ConsumerState<_QuickAccountPicker> {
+  String query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now().toUtc();
+    final accounts =
+        ref
+            .watch(accountsProvider)
+            .where(
+              (account) =>
+                  !account.isArchived &&
+                  '${account.name} ${account.guild} ${account.kingdom}'
+                      .toLowerCase()
+                      .contains(query),
+            )
+            .toList()
+          ..sort((a, b) {
+            final favorite = (b.isFavorite ? 1 : 0).compareTo(
+              a.isFavorite ? 1 : 0,
+            );
+            if (favorite != 0) return favorite;
+            return (a.lastPlayedAt ?? DateTime(1970)).compareTo(
+              b.lastPlayedAt ?? DateTime(1970),
+            );
+          });
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.sizeOf(context).height * .82,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Which account did you play?',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Choose any account. The notification no longer assumes queue order.',
+                style: TextStyle(color: Colors.white54),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                autofocus: true,
+                onChanged: (value) =>
+                    setState(() => query = value.trim().toLowerCase()),
+                decoration: const InputDecoration(
+                  hintText: 'Search name, guild or kingdom',
+                  prefixIcon: Icon(Icons.search_rounded),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: accounts.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final account = accounts[index];
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          child: Icon(
+                            account.playStatus(now) == PlayStatus.recent
+                                ? Icons.replay_rounded
+                                : Icons.check_rounded,
+                          ),
+                        ),
+                        title: Text(account.name),
+                        subtitle: Text(
+                          [
+                            account.guild,
+                            account.kingdom,
+                          ].where((value) => value.isNotEmpty).join(' • '),
+                        ),
+                        trailing: const Icon(Icons.touch_app_rounded),
+                        onTap: () async {
+                          await ref
+                              .read(accountsProvider.notifier)
+                              .checkIn(account.id);
+                          if (!context.mounted) return;
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                '${account.name} marked as played.',
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _RecentActivitySheetState extends ConsumerState<_RecentActivitySheet> {
@@ -444,7 +585,11 @@ class _AccountRefreshPulseState extends ConsumerState<_AccountRefreshPulse> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (!mounted || ref.read(accountsLoadingProvider)) return;
+      if (!mounted) return;
+      if (PlaySessionNotifications.consumePickerRequest()) {
+        showQuickAccountPicker(context, ref);
+      }
+      if (ref.read(accountsLoadingProvider)) return;
       ref.read(accountsProvider.notifier).refresh();
     });
   }

@@ -16,6 +16,7 @@ external JSPromise<JSAny?> _showPlaySession(
 
 abstract final class PlaySessionNotifications {
   static Future<void> initialize() async {}
+  static bool consumePickerRequest() => false;
 
   static Future<void> show(PlaySession session) async {
     await _showPlaySession(

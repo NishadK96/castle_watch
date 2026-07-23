@@ -46,7 +46,9 @@ final _router = GoRouter(
         ),
         GoRoute(
           path: '/play',
-          builder: (context, state) => const PlayTrackerScreen(),
+          builder: (context, state) => PlayTrackerScreen(
+            openQuickPicker: state.uri.queryParameters['quick'] == '1',
+          ),
         ),
         GoRoute(
           path: '/history',

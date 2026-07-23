@@ -8,13 +8,17 @@ import '../domain/models/models.dart';
 
 const _notificationId = 91042;
 final _notifications = FlutterLocalNotificationsPlugin();
+bool _pickerRequested = false;
 
 @pragma('vm:entry-point')
 Future<void> playSessionNotificationResponse(
   NotificationResponse response,
 ) async {
+  if (response.actionId == 'castle_watch_choose_account_v1') {
+    _pickerRequested = true;
+    return;
+  }
   final action = switch (response.actionId) {
-    'castle_watch_played_next_v2' => 'played',
     _ => null,
   };
   if (action == null || response.payload == null) return;
@@ -48,8 +52,8 @@ Future<void> _configure() => _notifications.initialize(
 
 Future<void> _showNative(PlaySession session) => _notifications.show(
   id: _notificationId,
-  title: 'Play ${session.accountName}',
-  body: 'Account ${session.position} of ${session.total}',
+  title: 'Castle Watch quick check-in',
+  body: 'Tap Choose account after playing any account.',
   notificationDetails: const NotificationDetails(
     android: AndroidNotificationDetails(
       'play_session',
@@ -61,9 +65,10 @@ Future<void> _showNative(PlaySession session) => _notifications.show(
       autoCancel: false,
       actions: [
         AndroidNotificationAction(
-          'castle_watch_played_next_v2',
-          'Played & next',
+          'castle_watch_choose_account_v1',
+          'Choose account',
           cancelNotification: false,
+          showsUserInterface: true,
         ),
       ],
     ),
@@ -73,5 +78,11 @@ Future<void> _showNative(PlaySession session) => _notifications.show(
 
 abstract final class PlaySessionNotifications {
   static Future<void> initialize() => _configure();
+  static bool consumePickerRequest() {
+    final requested = _pickerRequested;
+    _pickerRequested = false;
+    return requested;
+  }
+
   static Future<void> show(PlaySession session) => _showNative(session);
 }
