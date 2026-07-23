@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -117,6 +119,7 @@ class PlayTrackerScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const _AccountRefreshPulse(),
                         Text(
                           'Account login checklist',
                           style: Theme.of(context).textTheme.headlineSmall
@@ -255,6 +258,36 @@ class PlayTrackerScreen extends ConsumerWidget {
       );
     }
   }
+}
+
+class _AccountRefreshPulse extends ConsumerStatefulWidget {
+  const _AccountRefreshPulse();
+
+  @override
+  ConsumerState<_AccountRefreshPulse> createState() =>
+      _AccountRefreshPulseState();
+}
+
+class _AccountRefreshPulseState extends ConsumerState<_AccountRefreshPulse> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!mounted || ref.read(accountsLoadingProvider)) return;
+      ref.read(accountsProvider.notifier).refresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 class _TrackerSummary extends StatelessWidget {
