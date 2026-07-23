@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../application/app_state.dart';
 import '../../core/theme/app_theme.dart';
@@ -414,7 +415,7 @@ class AccountCard extends ConsumerWidget {
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        onTap: () {},
+        onTap: () => context.push('/accounts/${account.id}'),
         child: Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -570,6 +571,73 @@ class AccountCard extends ConsumerWidget {
   }
 }
 
+class PlayStatusBadge extends StatelessWidget {
+  const PlayStatusBadge({super.key, required this.account, required this.now});
+
+  final GameAccount account;
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = account.playStatus(now);
+    final color = switch (status) {
+      PlayStatus.recent => AppColors.cyan,
+      PlayStatus.dueSoon => AppColors.amber,
+      PlayStatus.overdue || PlayStatus.never => AppColors.red,
+    };
+    final label = switch (status) {
+      PlayStatus.recent =>
+        'Played ${formatPlayedAgo(now.difference(account.lastPlayedAt!))}',
+      PlayStatus.dueSoon => 'Login due soon',
+      PlayStatus.overdue => 'Login overdue',
+      PlayStatus.never => 'Not checked in',
+    };
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.sports_esports_rounded, color: color, size: 15),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String formatPlayedAgo(Duration age) {
+  if (age.inMinutes < 1) return 'just now';
+  if (age.inHours < 1) return '${age.inMinutes}m ago';
+  return '${age.inHours}h ago';
+}
+
+Future<void> checkInAccount(
+  BuildContext context,
+  WidgetRef ref,
+  GameAccount account,
+) async {
+  try {
+    await ref.read(accountsProvider.notifier).checkIn(account.id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${account.name} marked as played.')),
+    );
+  } catch (error) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Could not check in: $error')));
+  }
+}
+
 class StatusBadge extends StatelessWidget {
   const StatusBadge({super.key, required this.status});
   final ShieldState status;
@@ -684,6 +752,7 @@ class AccountsScreen extends ConsumerWidget {
           final a = accounts[i];
           return Card(
             child: ListTile(
+              onTap: () => context.push('/accounts/${a.id}'),
               contentPadding: const EdgeInsets.all(14),
               leading: const CircleAvatar(child: Icon(Icons.castle_outlined)),
               title: Text(a.name),
@@ -724,11 +793,24 @@ class AccountsScreen extends ConsumerWidget {
   }
 }
 
-Future<void> showAccountForm(BuildContext context, WidgetRef ref) async {
-  final name = TextEditingController(),
-      player = TextEditingController(),
-      kingdom = TextEditingController(),
-      guild = TextEditingController();
+Future<void> showAccountForm(
+  BuildContext context,
+  WidgetRef ref, {
+  GameAccount? account,
+}) async {
+  final name = TextEditingController(text: account?.name),
+      player = TextEditingController(text: account?.playerName),
+      kingdom = TextEditingController(text: account?.kingdom),
+      guild = TextEditingController(text: account?.guild),
+      might = TextEditingController(
+        text: account == null || account.might == 0 ? '' : '${account.might}',
+      ),
+      level = TextEditingController(
+        text: account == null || account.castleLevel == 0
+            ? ''
+            : '${account.castleLevel}',
+      ),
+      notes = TextEditingController(text: account?.notes);
   await showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -740,64 +822,112 @@ Future<void> showAccountForm(BuildContext context, WidgetRef ref) async {
         20,
         MediaQuery.viewInsetsOf(ctx).bottom + 24,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Add account', style: Theme.of(ctx).textTheme.headlineSmall),
-          const SizedBox(height: 18),
-          TextField(
-            controller: name,
-            autofocus: true,
-            decoration: const InputDecoration(labelText: 'Account name *'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: player,
-            decoration: const InputDecoration(labelText: 'Player name'),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: kingdom,
-                  decoration: const InputDecoration(labelText: 'Kingdom'),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              account == null ? 'Add account' : 'Edit account',
+              style: Theme.of(ctx).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 18),
+            TextField(
+              controller: name,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Account name *'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: player,
+              decoration: const InputDecoration(labelText: 'Player name'),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: kingdom,
+                    decoration: const InputDecoration(labelText: 'Kingdom'),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: guild,
-                  decoration: const InputDecoration(labelText: 'Guild'),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: guild,
+                    decoration: const InputDecoration(labelText: 'Guild'),
+                  ),
                 ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: might,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: 'Might'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: TextField(
+                    controller: level,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Castle level',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: notes,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                alignLabelWithHint: true,
               ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          FilledButton(
-            onPressed: () {
-              if (name.text.trim().isEmpty) return;
-              ref
-                  .read(accountsProvider.notifier)
-                  .addAccount(
+            ),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: () async {
+                if (name.text.trim().isEmpty) return;
+                final notifier = ref.read(accountsProvider.notifier);
+                if (account == null) {
+                  notifier.addAccount(
                     name: name.text.trim(),
                     player: player.text.trim(),
                     kingdom: kingdom.text.trim(),
                     guild: guild.text.trim(),
+                    might: int.tryParse(might.text.trim()) ?? 0,
+                    castleLevel: int.tryParse(level.text.trim()) ?? 0,
+                    notes: notes.text.trim(),
                   );
-              Navigator.pop(ctx);
-            },
-            child: const Text('Add account'),
-          ),
-        ],
+                } else {
+                  await notifier.updateAccount(
+                    account.copyWith(
+                      name: name.text.trim(),
+                      playerName: player.text.trim(),
+                      kingdom: kingdom.text.trim(),
+                      guild: guild.text.trim(),
+                      might: int.tryParse(might.text.trim()) ?? 0,
+                      castleLevel: int.tryParse(level.text.trim()) ?? 0,
+                      notes: notes.text.trim(),
+                    ),
+                  );
+                }
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: Text(account == null ? 'Add account' : 'Save changes'),
+            ),
+          ],
+        ),
       ),
     ),
   );
-  name.dispose();
-  player.dispose();
-  kingdom.dispose();
-  guild.dispose();
 }
 
 Future<void> showShieldSheet(
@@ -842,12 +972,28 @@ Future<void> showShieldSheet(
                         !await confirm(ctx, 'Replace the current shield?')) {
                       return;
                     }
-                    ref
+                    await ref
                         .read(accountsProvider.notifier)
                         .addShield(account.id, o.$2);
                     if (ctx.mounted) Navigator.pop(ctx);
                   },
                 ),
+              ActionChip(
+                label: const Text('Custom duration'),
+                avatar: const Icon(Icons.tune_rounded, size: 18),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await showCustomShieldDialog(context, ref, account);
+                },
+              ),
+              ActionChip(
+                label: const Text('Choose expiry'),
+                avatar: const Icon(Icons.event_rounded, size: 18),
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await chooseShieldExpiry(context, ref, account);
+                },
+              ),
             ],
           ),
         ],
@@ -855,6 +1001,129 @@ Future<void> showShieldSheet(
     ),
   );
 }
+
+Future<void> showCustomShieldDialog(
+  BuildContext context,
+  WidgetRef ref,
+  GameAccount account,
+) async {
+  final amount = TextEditingController(text: '8');
+  final notes = TextEditingController();
+  var unit = 'hours';
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setDialogState) => AlertDialog(
+        title: const Text('Custom shield'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: amount,
+                      autofocus: true,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Duration'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  DropdownButton<String>(
+                    value: unit,
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'minutes',
+                        child: Text('Minutes'),
+                      ),
+                      DropdownMenuItem(value: 'hours', child: Text('Hours')),
+                      DropdownMenuItem(value: 'days', child: Text('Days')),
+                    ],
+                    onChanged: (value) =>
+                        setDialogState(() => unit = value ?? unit),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notes,
+                decoration: const InputDecoration(labelText: 'Shield notes'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final value = int.tryParse(amount.text.trim()) ?? 0;
+              if (value <= 0) return;
+              final duration = switch (unit) {
+                'minutes' => Duration(minutes: value),
+                'days' => Duration(days: value),
+                _ => Duration(hours: value),
+              };
+              if (!await _replaceShieldIfNeeded(ctx, account)) return;
+              await ref
+                  .read(accountsProvider.notifier)
+                  .addShield(account.id, duration, notes: notes.text.trim());
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Activate'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Future<void> chooseShieldExpiry(
+  BuildContext context,
+  WidgetRef ref,
+  GameAccount account,
+) async {
+  final now = DateTime.now();
+  final date = await showDatePicker(
+    context: context,
+    firstDate: now,
+    lastDate: now.add(const Duration(days: 365)),
+    initialDate: now.add(const Duration(days: 1)),
+  );
+  if (date == null || !context.mounted) return;
+  final time = await showTimePicker(
+    context: context,
+    initialTime: TimeOfDay.fromDateTime(now.add(const Duration(days: 1))),
+  );
+  if (time == null || !context.mounted) return;
+  final expiry = DateTime(
+    date.year,
+    date.month,
+    date.day,
+    time.hour,
+    time.minute,
+  );
+  final duration = expiry.difference(DateTime.now());
+  if (duration <= Duration.zero) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Choose a future expiry time.')),
+    );
+    return;
+  }
+  if (!await _replaceShieldIfNeeded(context, account)) return;
+  await ref.read(accountsProvider.notifier).addShield(account.id, duration);
+}
+
+Future<bool> _replaceShieldIfNeeded(
+  BuildContext context,
+  GameAccount account,
+) async =>
+    account.shield == null ||
+    await confirm(context, 'Replace the current shield?');
 
 Future<bool> confirm(BuildContext context, String title) async =>
     await showDialog<bool>(

@@ -8,6 +8,8 @@ class Shield {
     required this.expiresAt,
     required this.type,
     this.status = 'active',
+    this.durationMinutes = 0,
+    this.notes = '',
   });
   final String id;
   final String accountId;
@@ -15,6 +17,8 @@ class Shield {
   final DateTime expiresAt;
   final String type;
   final String status;
+  final int durationMinutes;
+  final String notes;
   factory Shield.fromJson(Map<String, dynamic> json) => Shield(
     id: json['id'] as String,
     accountId: json['account_id'] as String,
@@ -22,6 +26,8 @@ class Shield {
     expiresAt: DateTime.parse(json['expires_at'] as String).toUtc(),
     type: json['shield_type'] as String,
     status: json['status'] as String? ?? 'active',
+    durationMinutes: json['duration_minutes'] as int? ?? 0,
+    notes: json['notes'] as String? ?? '',
   );
   Duration remaining(DateTime now) => expiresAt.difference(now);
   ShieldState state(DateTime now) {
@@ -45,6 +51,8 @@ class GameAccount {
     this.castleLevel = 0,
     this.isFavorite = false,
     this.isArchived = false,
+    this.notes = '',
+    this.lastPlayedAt,
     this.shield,
   });
   final String id;
@@ -56,6 +64,8 @@ class GameAccount {
   final int castleLevel;
   final bool isFavorite;
   final bool isArchived;
+  final String notes;
+  final DateTime? lastPlayedAt;
   final Shield? shield;
   factory GameAccount.fromJson(Map<String, dynamic> json) {
     final shields =
@@ -79,6 +89,10 @@ class GameAccount {
       castleLevel: json['castle_level'] as int? ?? 0,
       isFavorite: json['is_favorite'] as bool? ?? false,
       isArchived: json['is_archived'] as bool? ?? false,
+      notes: json['notes'] as String? ?? '',
+      lastPlayedAt: json['last_played_at'] == null
+          ? null
+          : DateTime.parse(json['last_played_at'] as String).toUtc(),
       shield: shields.firstOrNull,
     );
   }
@@ -91,7 +105,10 @@ class GameAccount {
     int? castleLevel,
     bool? isFavorite,
     bool? isArchived,
+    String? notes,
+    DateTime? lastPlayedAt,
     Shield? shield,
+    bool clearShield = false,
   }) => GameAccount(
     id: id,
     name: name ?? this.name,
@@ -102,6 +119,56 @@ class GameAccount {
     castleLevel: castleLevel ?? this.castleLevel,
     isFavorite: isFavorite ?? this.isFavorite,
     isArchived: isArchived ?? this.isArchived,
-    shield: shield ?? this.shield,
+    notes: notes ?? this.notes,
+    lastPlayedAt: lastPlayedAt ?? this.lastPlayedAt,
+    shield: clearShield ? null : shield ?? this.shield,
   );
+}
+
+enum PlayStatus { recent, dueSoon, overdue, never }
+
+extension GameAccountPlayStatus on GameAccount {
+  PlayStatus playStatus(DateTime now) {
+    final played = lastPlayedAt;
+    if (played == null) return PlayStatus.never;
+    final age = now.difference(played);
+    if (age >= const Duration(hours: 24)) return PlayStatus.overdue;
+    if (age >= const Duration(hours: 18)) return PlayStatus.dueSoon;
+    return PlayStatus.recent;
+  }
+}
+
+class AccountCheckIn {
+  const AccountCheckIn({
+    required this.id,
+    required this.accountId,
+    required this.playedAt,
+    this.notes = '',
+  });
+
+  final String id;
+  final String accountId;
+  final DateTime playedAt;
+  final String notes;
+
+  factory AccountCheckIn.fromJson(Map<String, dynamic> json) => AccountCheckIn(
+    id: json['id'] as String,
+    accountId: json['account_id'] as String,
+    playedAt: DateTime.parse(json['played_at'] as String).toUtc(),
+    notes: json['notes'] as String? ?? '',
+  );
+}
+
+class ShieldHistoryEntry {
+  const ShieldHistoryEntry({required this.shield, required this.accountName});
+  final Shield shield;
+  final String accountName;
+  factory ShieldHistoryEntry.fromJson(Map<String, dynamic> json) =>
+      ShieldHistoryEntry(
+        shield: Shield.fromJson(json),
+        accountName:
+            (json['game_accounts'] as Map<String, dynamic>?)?['account_name']
+                as String? ??
+            'Unknown account',
+      );
 }

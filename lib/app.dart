@@ -6,8 +6,11 @@ import 'application/notifications_state.dart';
 import 'core/config/supabase_config.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/screens/dashboard_screen.dart';
+import 'presentation/screens/account_details_screen.dart';
 import 'presentation/screens/login_screen.dart';
 import 'presentation/screens/notifications_screen.dart';
+import 'presentation/screens/play_tracker_screen.dart';
+import 'presentation/screens/shield_history_screen.dart';
 
 final _router = GoRouter(
   initialLocation: '/dashboard',
@@ -37,11 +40,17 @@ final _router = GoRouter(
           builder: (context, state) => const AccountsScreen(),
         ),
         GoRoute(
+          path: '/accounts/:id',
+          builder: (context, state) =>
+              AccountDetailsScreen(accountId: state.pathParameters['id']!),
+        ),
+        GoRoute(
+          path: '/play',
+          builder: (context, state) => const PlayTrackerScreen(),
+        ),
+        GoRoute(
           path: '/history',
-          builder: (context, state) => const PlaceholderScreen(
-            title: 'Shield history',
-            icon: Icons.history_rounded,
-          ),
+          builder: (context, state) => const ShieldHistoryScreen(),
         ),
         GoRoute(
           path: '/notifications',
@@ -74,6 +83,7 @@ class AppShell extends ConsumerStatefulWidget {
   static const paths = [
     '/dashboard',
     '/accounts',
+    '/play',
     '/history',
     '/notifications',
     '/settings',
@@ -86,6 +96,10 @@ class AppShell extends ConsumerStatefulWidget {
     NavigationRailDestination(
       icon: Icon(Icons.castle_outlined),
       label: Text('Accounts'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.sports_esports_outlined),
+      label: Text('Play'),
     ),
     NavigationRailDestination(
       icon: Icon(Icons.history_rounded),

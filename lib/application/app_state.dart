@@ -98,12 +98,23 @@ class AccountsNotifier extends Notifier<List<GameAccount>> {
     String player = '',
     String kingdom = '',
     String guild = '',
+    int might = 0,
+    int castleLevel = 0,
+    String notes = '',
   }) async {
     if (SupabaseConfig.isConfigured) {
       try {
         final account = await ref
             .read(accountsRepositoryProvider)
-            .create(name: name, player: player, kingdom: kingdom, guild: guild);
+            .create(
+              name: name,
+              player: player,
+              kingdom: kingdom,
+              guild: guild,
+              might: might,
+              castleLevel: castleLevel,
+              notes: notes,
+            );
         state = [...state, account];
       } on AppFailure catch (error) {
         ref.read(accountErrorProvider.notifier).state = error.message;
@@ -119,8 +130,31 @@ class AccountsNotifier extends Notifier<List<GameAccount>> {
         playerName: player,
         kingdom: kingdom,
         guild: guild,
+        might: might,
+        castleLevel: castleLevel,
+        notes: notes,
       ),
     ];
+  }
+
+  GameAccount? byId(String id) {
+    for (final account in state) {
+      if (account.id == id) return account;
+    }
+    return null;
+  }
+
+  Future<void> updateAccount(GameAccount account) async {
+    final previous = state;
+    state = [for (final item in state) item.id == account.id ? account : item];
+    if (SupabaseConfig.isConfigured) {
+      try {
+        await ref.read(accountsRepositoryProvider).updateAccount(account);
+      } catch (_) {
+        state = previous;
+        rethrow;
+      }
+    }
   }
 
   Future<void> toggleFavorite(String id) async {
@@ -158,18 +192,48 @@ class AccountsNotifier extends Notifier<List<GameAccount>> {
     }
   }
 
-  Future<void> addShield(String accountId, Duration duration) async {
+  Future<void> checkIn(
+    String accountId, {
+    DateTime? playedAt,
+    String notes = '',
+  }) async {
+    final timestamp = (playedAt ?? DateTime.now()).toUtc();
+    if (SupabaseConfig.isConfigured) {
+      await ref
+          .read(accountsRepositoryProvider)
+          .checkIn(accountId, playedAt: timestamp, notes: notes);
+    }
+    state = [
+      for (final account in state)
+        account.id == accountId
+            ? account.copyWith(lastPlayedAt: timestamp)
+            : account,
+    ];
+    ref.invalidate(accountCheckInsProvider(accountId));
+  }
+
+  Future<void> addShield(
+    String accountId,
+    Duration duration, {
+    DateTime? startedAt,
+    String notes = '',
+  }) async {
     if (!SupabaseConfig.isConfigured && !SupabaseConfig.demoMode) return;
     final now = DateTime.now().toUtc();
     final shield = SupabaseConfig.isConfigured
         ? await ref
               .read(accountsRepositoryProvider)
-              .replaceShield(accountId, duration)
+              .replaceShield(
+                accountId,
+                duration,
+                startedAt: startedAt,
+                notes: notes,
+              )
         : Shield(
             id: _uuid.v4(),
             accountId: accountId,
-            startedAt: now,
-            expiresAt: now.add(duration),
+            startedAt: startedAt ?? now,
+            expiresAt: (startedAt ?? now).add(duration),
             type: duration.inHours >= 24
                 ? '${duration.inDays} day'
                 : '${duration.inHours} hours',
@@ -177,5 +241,47 @@ class AccountsNotifier extends Notifier<List<GameAccount>> {
     state = [
       for (final a in state) a.id == accountId ? a.copyWith(shield: shield) : a,
     ];
+    ref.invalidate(shieldHistoryProvider);
+  }
+
+  Future<void> cancelShield(String accountId) async {
+    final account = byId(accountId);
+    final shield = account?.shield;
+    if (shield == null) return;
+    if (SupabaseConfig.isConfigured) {
+      await ref.read(accountsRepositoryProvider).cancelShield(shield.id);
+    }
+    state = [
+      for (final item in state)
+        item.id == accountId ? item.copyWith(clearShield: true) : item,
+    ];
+    ref.invalidate(shieldHistoryProvider);
+  }
+}
+
+final accountCheckInsProvider =
+    FutureProvider.family<List<AccountCheckIn>, String>((ref, accountId) async {
+      if (!SupabaseConfig.isConfigured) return const [];
+      return ref.read(accountsRepositoryProvider).fetchCheckIns(accountId);
+    });
+
+final shieldHistoryProvider =
+    AsyncNotifierProvider<ShieldHistoryNotifier, List<ShieldHistoryEntry>>(
+      ShieldHistoryNotifier.new,
+    );
+
+class ShieldHistoryNotifier extends AsyncNotifier<List<ShieldHistoryEntry>> {
+  @override
+  Future<List<ShieldHistoryEntry>> build() async {
+    if (!SupabaseConfig.isConfigured) return const [];
+    return ref.read(accountsRepositoryProvider).fetchShieldHistory();
+  }
+
+  Future<void> refresh() async => state = await AsyncValue.guard(
+    () => ref.read(accountsRepositoryProvider).fetchShieldHistory(),
+  );
+  Future<void> delete(String id) async {
+    await ref.read(accountsRepositoryProvider).deleteShield(id);
+    await refresh();
   }
 }
