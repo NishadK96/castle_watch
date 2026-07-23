@@ -116,6 +116,42 @@ class AccountsRepository {
     }
   }
 
+  Future<List<AccountCheckIn>> fetchRecentCheckIns() async {
+    try {
+      final rows = await _client
+          .from('account_check_ins')
+          .select('*, game_accounts(account_name)')
+          .eq('user_id', _userId)
+          .order('played_at', ascending: false)
+          .limit(100);
+      return rows.map(AccountCheckIn.fromJson).toList();
+    } catch (error) {
+      throw AppFailure.friendly(error);
+    }
+  }
+
+  Future<void> undoCheckIn(String checkInId) async {
+    try {
+      await _client.rpc(
+        'undo_account_check_in',
+        params: {'p_check_in_id': checkInId},
+      );
+    } catch (error) {
+      throw AppFailure.friendly(error);
+    }
+  }
+
+  Future<void> reassignCheckIn(String checkInId, String accountId) async {
+    try {
+      await _client.rpc(
+        'reassign_account_check_in',
+        params: {'p_check_in_id': checkInId, 'p_new_account_id': accountId},
+      );
+    } catch (error) {
+      throw AppFailure.friendly(error);
+    }
+  }
+
   Future<PlaySession> startPlaySession(List<String> accountIds) async {
     try {
       final row = await _client.rpc(

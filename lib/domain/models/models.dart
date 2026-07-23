@@ -144,18 +144,24 @@ class AccountCheckIn {
     required this.accountId,
     required this.playedAt,
     this.notes = '',
+    this.accountName = '',
   });
 
   final String id;
   final String accountId;
   final DateTime playedAt;
   final String notes;
+  final String accountName;
 
   factory AccountCheckIn.fromJson(Map<String, dynamic> json) => AccountCheckIn(
     id: json['id'] as String,
     accountId: json['account_id'] as String,
     playedAt: DateTime.parse(json['played_at'] as String).toUtc(),
     notes: json['notes'] as String? ?? '',
+    accountName:
+        (json['game_accounts'] as Map<String, dynamic>?)?['account_name']
+            as String? ??
+        '',
   );
 }
 

@@ -100,6 +100,16 @@ class PlayTrackerScreen extends ConsumerWidget {
         title: const Text('Play Tracker'),
         actions: [
           IconButton(
+            tooltip: 'Recent activity',
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              showDragHandle: true,
+              builder: (_) => const _RecentActivitySheet(),
+            ),
+            icon: const Icon(Icons.manage_history_rounded),
+          ),
+          IconButton(
             tooltip: 'Refresh',
             onPressed: () => ref.read(accountsProvider.notifier).refresh(),
             icon: const Icon(Icons.refresh_rounded),
@@ -258,6 +268,165 @@ class PlayTrackerScreen extends ConsumerWidget {
       );
     }
   }
+}
+
+class _RecentActivitySheet extends ConsumerStatefulWidget {
+  const _RecentActivitySheet();
+
+  @override
+  ConsumerState<_RecentActivitySheet> createState() =>
+      _RecentActivitySheetState();
+}
+
+class _RecentActivitySheetState extends ConsumerState<_RecentActivitySheet> {
+  late Future<List<AccountCheckIn>> _activity;
+  String _query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _reload();
+  }
+
+  void _reload() {
+    _activity = ref.read(accountsRepositoryProvider).fetchRecentCheckIns();
+  }
+
+  Future<void> _undo(AccountCheckIn item) async {
+    if (!await confirm(context, 'Undo ${item.accountName} check-in?')) return;
+    await ref.read(accountsRepositoryProvider).undoCheckIn(item.id);
+    await ref.read(accountsProvider.notifier).refresh();
+    if (mounted) setState(_reload);
+  }
+
+  Future<void> _reassign(AccountCheckIn item) async {
+    final accounts = ref.read(accountsProvider);
+    var selected = item.accountId;
+    final target = await showDialog<String>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Change account'),
+          content: DropdownButtonFormField<String>(
+            initialValue: selected,
+            isExpanded: true,
+            decoration: const InputDecoration(labelText: 'Played account'),
+            items: [
+              for (final account in accounts)
+                DropdownMenuItem(value: account.id, child: Text(account.name)),
+            ],
+            onChanged: (value) =>
+                setDialogState(() => selected = value ?? selected),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, selected),
+              child: const Text('Change'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (target == null || target == item.accountId) return;
+    await ref.read(accountsRepositoryProvider).reassignCheckIn(item.id, target);
+    await ref.read(accountsProvider.notifier).refresh();
+    if (mounted) setState(_reload);
+  }
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: SizedBox(
+      height: MediaQuery.sizeOf(context).height * .82,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Recent play activity',
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Undo a check-in or move it to the account you actually played.',
+              style: TextStyle(color: Colors.white54),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              onChanged: (value) =>
+                  setState(() => _query = value.toLowerCase()),
+              decoration: const InputDecoration(
+                hintText: 'Search accounts',
+                prefixIcon: Icon(Icons.search_rounded),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: FutureBuilder<List<AccountCheckIn>>(
+                future: _activity,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('${snapshot.error}'));
+                  }
+                  final items = (snapshot.data ?? [])
+                      .where(
+                        (item) =>
+                            item.accountName.toLowerCase().contains(_query),
+                      )
+                      .toList();
+                  if (items.isEmpty) {
+                    return const Center(child: Text('No recent check-ins.'));
+                  }
+                  return ListView.separated(
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.check_rounded),
+                        ),
+                        title: Text(item.accountName),
+                        subtitle: Text(
+                          DateFormat(
+                            'MMM d, yyyy • h:mm:ss a',
+                          ).format(item.playedAt.toLocal()),
+                        ),
+                        trailing: PopupMenuButton<String>(
+                          onSelected: (value) {
+                            if (value == 'undo') _undo(item);
+                            if (value == 'change') _reassign(item);
+                          },
+                          itemBuilder: (_) => const [
+                            PopupMenuItem(
+                              value: 'change',
+                              child: Text('Change account'),
+                            ),
+                            PopupMenuItem(
+                              value: 'undo',
+                              child: Text('Undo check-in'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _AccountRefreshPulse extends ConsumerStatefulWidget {
