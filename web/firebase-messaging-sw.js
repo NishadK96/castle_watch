@@ -30,7 +30,7 @@ self.addEventListener('notificationclick', (event) => {
           body: JSON.stringify({
             p_session_id: data.sessionId,
             p_secret: data.secret,
-            p_action: event.action
+            p_action: event.action === 'stop' ? 'stop' : 'played'
           })
         }
       );
@@ -55,7 +55,6 @@ self.addEventListener('notificationclick', (event) => {
         requireInteraction: true,
         actions: [
           { action: 'played', title: 'Played & next' },
-          { action: 'skip', title: 'Skip' },
           { action: 'stop', title: 'Stop' }
         ],
         data

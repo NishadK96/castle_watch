@@ -53,6 +53,7 @@
           'firebase-messaging-sw.js'
         );
       }
+      await registration.update();
       await navigator.serviceWorker.ready;
       await registration.showNotification(`Play ${accountName}`, {
         body: `Account ${position} of ${total}`,
@@ -63,7 +64,6 @@
         requireInteraction: true,
         actions: [
           { action: 'played', title: 'Played & next' },
-          { action: 'skip', title: 'Skip' },
           { action: 'stop', title: 'Stop' }
         ],
         data: { sessionId, secret, supabaseUrl, anonKey }

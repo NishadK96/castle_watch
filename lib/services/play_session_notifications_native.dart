@@ -15,7 +15,6 @@ Future<void> playSessionNotificationResponse(
 ) async {
   final action = switch (response.actionId) {
     'play_done' => 'played',
-    'play_skip' => 'skip',
     'play_stop' => 'stop',
     _ => null,
   };
@@ -65,11 +64,6 @@ Future<void> _showNative(PlaySession session) => _notifications.show(
         AndroidNotificationAction(
           'play_done',
           'Played & next',
-          cancelNotification: false,
-        ),
-        AndroidNotificationAction(
-          'play_skip',
-          'Skip',
           cancelNotification: false,
         ),
         AndroidNotificationAction('play_stop', 'Stop'),
