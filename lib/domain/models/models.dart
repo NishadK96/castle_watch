@@ -159,6 +159,32 @@ class AccountCheckIn {
   );
 }
 
+class PlaySession {
+  const PlaySession({
+    required this.id,
+    required this.secret,
+    required this.accountId,
+    required this.accountName,
+    required this.position,
+    required this.total,
+  });
+  final String id;
+  final String secret;
+  final String accountId;
+  final String accountName;
+  final int position;
+  final int total;
+
+  factory PlaySession.fromJson(Map<String, dynamic> json) => PlaySession(
+    id: json['id'] as String,
+    secret: json['secret'] as String,
+    accountId: json['current_account_id'] as String,
+    accountName: json['current_account_name'] as String,
+    position: json['position'] as int,
+    total: json['total'] as int,
+  );
+}
+
 class ShieldHistoryEntry {
   const ShieldHistoryEntry({required this.shield, required this.accountName});
   final Shield shield;

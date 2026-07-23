@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../application/app_state.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/models.dart';
+import '../../services/play_session_notifications.dart';
 import 'dashboard_screen.dart';
 
 class PlayTrackerScreen extends ConsumerWidget {
@@ -146,6 +147,26 @@ class PlayTrackerScreen extends ConsumerWidget {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: accounts.isEmpty
+                                ? null
+                                : () => _startHandsFreeSession(
+                                    context,
+                                    ref,
+                                    accounts,
+                                    now,
+                                  ),
+                            icon: const Icon(
+                              Icons.notifications_active_rounded,
+                            ),
+                            label: const Text(
+                              'Start notification play session',
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -201,6 +222,38 @@ class PlayTrackerScreen extends ConsumerWidget {
       return account.notes.substring(marker.length).split(' • ').first;
     }
     return _fallbackGroups[account.name] ?? 'Other';
+  }
+
+  static Future<void> _startHandsFreeSession(
+    BuildContext context,
+    WidgetRef ref,
+    List<GameAccount> accounts,
+    DateTime now,
+  ) async {
+    final due = accounts
+        .where((account) => account.playStatus(now) != PlayStatus.recent)
+        .toList();
+    final queue = due.isEmpty ? accounts : due;
+    try {
+      final session = await ref
+          .read(accountsRepositoryProvider)
+          .startPlaySession(queue.map((account) => account.id).toList());
+      await PlaySessionNotifications.initialize();
+      await PlaySessionNotifications.show(session);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Play session started with ${queue.length} accounts. Use the notification controls.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not start play session: $error')),
+      );
+    }
   }
 }
 

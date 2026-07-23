@@ -116,6 +116,18 @@ class AccountsRepository {
     }
   }
 
+  Future<PlaySession> startPlaySession(List<String> accountIds) async {
+    try {
+      final row = await _client.rpc(
+        'start_play_session',
+        params: {'p_account_ids': accountIds},
+      );
+      return PlaySession.fromJson(Map<String, dynamic>.from(row as Map));
+    } catch (error) {
+      throw AppFailure.friendly(error);
+    }
+  }
+
   Future<Shield> replaceShield(
     String accountId,
     Duration duration, {
