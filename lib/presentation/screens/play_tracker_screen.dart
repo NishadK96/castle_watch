@@ -9,6 +9,7 @@ import '../../application/app_state.dart';
 import '../../core/theme/app_theme.dart';
 import '../../domain/models/models.dart';
 import '../../services/play_session_notifications.dart';
+import '../../services/play_overlay.dart';
 import 'dashboard_screen.dart';
 
 class PlayTrackerScreen extends ConsumerWidget {
@@ -181,13 +182,16 @@ class PlayTrackerScreen extends ConsumerWidget {
                                     context,
                                     ref,
                                     accounts,
-                                    now,
                                   ),
-                            icon: const Icon(
-                              Icons.notifications_active_rounded,
+                            icon: Icon(
+                              PlayOverlay.isSupported
+                                  ? Icons.picture_in_picture_alt_rounded
+                                  : Icons.notifications_active_rounded,
                             ),
-                            label: const Text(
-                              'Enable quick check-in notification',
+                            label: Text(
+                              PlayOverlay.isSupported
+                                  ? 'Enable floating account picker'
+                                  : 'Enable quick check-in notification',
                             ),
                           ),
                         ),
@@ -262,23 +266,36 @@ class PlayTrackerScreen extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     List<GameAccount> accounts,
-    DateTime now,
   ) async {
-    final due = accounts
-        .where((account) => account.playStatus(now) != PlayStatus.recent)
-        .toList();
-    final queue = due.isEmpty ? accounts : due;
+    final queue = accounts;
     try {
       final session = await ref
           .read(accountsRepositoryProvider)
           .startPlaySession(queue.map((account) => account.id).toList());
-      await PlaySessionNotifications.initialize();
-      await PlaySessionNotifications.show(session);
+      if (PlayOverlay.isSupported) {
+        final started = await PlayOverlay.start(session, queue);
+        if (!context.mounted) return;
+        if (!started) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Allow “Display over other apps”, then tap Enable again.',
+              ),
+            ),
+          );
+          return;
+        }
+      } else {
+        await PlaySessionNotifications.initialize();
+        await PlaySessionNotifications.show(session);
+      }
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Quick check-in notification enabled. Choose any account after you play.',
+            PlayOverlay.isSupported
+                ? 'Floating account picker enabled.'
+                : 'Quick check-in notification enabled. Choose any account after you play.',
           ),
         ),
       );
