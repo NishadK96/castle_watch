@@ -30,7 +30,7 @@ self.addEventListener('notificationclick', (event) => {
           body: JSON.stringify({
             p_session_id: data.sessionId,
             p_secret: data.secret,
-            p_action: event.action === 'stop' ? 'stop' : 'played'
+            p_action: 'played'
           })
         }
       );
@@ -54,8 +54,7 @@ self.addEventListener('notificationclick', (event) => {
         renotify: true,
         requireInteraction: true,
         actions: [
-          { action: 'played', title: 'Played & next' },
-          { action: 'stop', title: 'Stop' }
+          { action: 'castle_watch_played_next_v2', title: 'Played & next' }
         ],
         data
       });
